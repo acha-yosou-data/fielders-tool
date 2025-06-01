@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>野手期待値計算ツール</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 30px;
+    }
+    label, input, select {
+      display: block;
+      margin: 5px 0;
+    }
+    input, select {
+      width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <h1>野手期待値計算ツール</h1>
+
+  <label>年間打率：<input type="number" step="0.001" id="annualBA"></label>
+  <label>年間本塁打率：<input type="number" step="0.001" id="annualHRRate"></label>
+
+  <label>本塁打パークファクター：
+    <select id="hrParkFactor">
+      <option value="1.10">東京ドーム 1.10</option>
+      <option value="0.62">甲子園 0.62</option>
+      <option value="0.86">横浜 0.86</option>
+      <option value="0.74">マツダスタジアム 0.74</option>
+      <option value="1.92">神宮 1.92</option>
+      <option value="0.69">バンテリンドーム 0.69</option>
+      <option value="1.25">みずほPayPay 1.25</option>
+      <option value="1.61">エスコンF 1.61</option>
+      <option value="1.04">ZOZOマリン 1.04</option>
+      <option value="0.69">楽天モバイル 0.69</option>
+      <option value="0.87">京セラD大阪 0.87</option>
+      <option value="0.75">ベルーナドーム 0.75</option>
+      <option value="1.00" selected>地方球場 1.00</option>
+    </select>
+  </label>
+
+  <label>直近試合打率：<input type="number" step="0.001" id="recentBA"></label>
+  <label>球場打率：<input type="number" step="0.001" id="stadiumBA"></label>
+  <label>年間対左右打率：<input type="number" step="0.001" id="vsHandBA"></label>
+  <label>対相手先発打率：<input type="number" step="0.001" id="vsPitcherBA"></label>
+  <label>対相手先発本塁打数：<input type="number" step="1" id="vsPitcherHR"></label>
+  <label>年間三振率：<input type="number" step="0.001" id="kRate"></label>
+  <label>守備率：<input type="number" step="0.001" id="fielding"></label>
+
+  <button onclick="calculate()">計算</button>
+
+  <h2>結果</h2>
+  <p id="result">期待値: -</p>
+
+  <script>
+    function calculate() {
+      const annualBA = parseFloat(document.getElementById("annualBA").value) || 0;
+      const annualHRRate = parseFloat(document.getElementById("annualHRRate").value) || 0;
+      const hrParkFactor = parseFloat(document.getElementById("hrParkFactor").value) || 1.00;
+      const recentBA = parseFloat(document.getElementById("recentBA").value) || 0;
+      const stadiumBA = parseFloat(document.getElementById("stadiumBA").value) || 0.200;
+      const vsHandBA = parseFloat(document.getElementById("vsHandBA").value) || 0.200;
+      const vsPitcherBA = parseFloat(document.getElementById("vsPitcherBA").value) || 0.200;
+      const vsPitcherHR = parseFloat(document.getElementById("vsPitcherHR").value) || 0;
+      const kRate = parseFloat(document.getElementById("kRate").value) || 0;
+      const fielding = parseFloat(document.getElementById("fielding").value) || 1.000;
+
+      const expected = (
+        annualBA +
+        (annualHRRate * hrParkFactor) +
+        recentBA +
+        stadiumBA +
+        vsHandBA +
+        vsPitcherBA +
+        (vsPitcherHR * 0.300) -
+        kRate +
+        3 * (1.00 - fielding)
+      );
+
+      document.getElementById("result").innerText = `期待値: ${expected.toFixed(3)}`;
+    }
+  </script>
+</body>
+</html>
