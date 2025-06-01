@@ -1,87 +1,97 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>野手期待値計算ツール</title>
+  <title>プロスピA 活躍選手ポイント計算</title>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 30px;
-    }
-    label, input, select {
-      display: block;
-      margin: 5px 0;
-    }
-    input, select {
-      width: 200px;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    h1, h2 { color: #c00; }
+    .section { margin-bottom: 30px; }
+    label { display: flex; align-items: center; margin: 5px 0; }
+    input[type='number'] { width: 100px; margin-left: 10px; }
+    input[type='checkbox'] { margin-right: 10px; }
   </style>
 </head>
 <body>
-  <h1>野手期待値計算ツール</h1>
+  <h1>プロスピA 活躍選手ポイント計算</h1>
 
-  <label>年間打率：<input type="number" step="0.001" id="annualBA"></label>
-  <label>年間本塁打率：<input type="number" step="0.001" id="annualHRRate"></label>
+  <div class="section">
+    <label>選手タイプ:
+      <select id="role" onchange="updateForm()">
+        <option value="batter">野手</option>
+        <option value="starter">先発</option>
+        <option value="relief">中継ぎ・抑え</option>
+      </select>
+    </label>
+  </div>
 
-  <label>本塁打パークファクター：
-    <select id="hrParkFactor">
-      <option value="1.10">東京ドーム 1.10</option>
-      <option value="0.62">甲子園 0.62</option>
-      <option value="0.86">横浜 0.86</option>
-      <option value="0.74">マツダスタジアム 0.74</option>
-      <option value="1.92">神宮 1.92</option>
-      <option value="0.69">バンテリンドーム 0.69</option>
-      <option value="1.25">みずほPayPay 1.25</option>
-      <option value="1.61">エスコンF 1.61</option>
-      <option value="1.04">ZOZOマリン 1.04</option>
-      <option value="0.69">楽天モバイル 0.69</option>
-      <option value="0.87">京セラD大阪 0.87</option>
-      <option value="0.75">ベルーナドーム 0.75</option>
-      <option value="1.00" selected>地方球場 1.00</option>
-    </select>
-  </label>
+  <form id="form"></form>
 
-  <label>直近試合打率：<input type="number" step="0.001" id="recentBA"></label>
-  <label>球場打率：<input type="number" step="0.001" id="stadiumBA"></label>
-  <label>年間対左右打率：<input type="number" step="0.001" id="vsHandBA"></label>
-  <label>対相手先発打率：<input type="number" step="0.001" id="vsPitcherBA"></label>
-  <label>対相手先発本塁打数：<input type="number" step="1" id="vsPitcherHR"></label>
-  <label>年間三振率：<input type="number" step="0.001" id="kRate"></label>
-  <label>守備率：<input type="number" step="0.001" id="fielding"></label>
-
-  <button onclick="calculate()">計算</button>
-
-  <h2>結果</h2>
-  <p id="result">期待値: -</p>
+  <div class="section">
+    <button type="button" onclick="calculateScore()">ポイント計算</button>
+    <h2 id="result">合計ポイント: 0</h2>
+  </div>
 
   <script>
-    function calculate() {
-      const annualBA = parseFloat(document.getElementById("annualBA").value) || 0;
-      const annualHRRate = parseFloat(document.getElementById("annualHRRate").value) || 0;
-      const hrParkFactor = parseFloat(document.getElementById("hrParkFactor").value) || 1.00;
-      const recentBA = parseFloat(document.getElementById("recentBA").value) || 0;
-      const stadiumBA = parseFloat(document.getElementById("stadiumBA").value) || 0.200;
-      const vsHandBA = parseFloat(document.getElementById("vsHandBA").value) || 0.200;
-      const vsPitcherBA = parseFloat(document.getElementById("vsPitcherBA").value) || 0.200;
-      const vsPitcherHR = parseFloat(document.getElementById("vsPitcherHR").value) || 0;
-      const kRate = parseFloat(document.getElementById("kRate").value) || 0;
-      const fielding = parseFloat(document.getElementById("fielding").value) || 1.000;
+    const scoring = {
+      batter: {
+        "単打": 15, "二塁打": 30, "三塁打": 45, "本塁打": 60,
+        "打点": 18, "盗塁": 24, "犠打/犠飛": 10, "四死球": 12,
+        "三振": -10, "併殺打": -25, "得点": 15, "失策": -30,
+        "サイクルヒット": 100, "ポジション一致ボーナス": 30
+      },
+      starter: {
+        "アウト": 12, "被安打": -2, "被本塁打": -4, "自責点": -20,
+        "奪三振": 4, "与四死球": -2, "勝利投手": 100, "負け投手": -50,
+        "完投勝利": 15, "完封勝利": 30, "ノーヒットノーラン": 70, "完全試合": 100,
+        "失策": -30
+      },
+      relief: {
+        "アウト": 24, "被安打": -6, "被本塁打": -8, "自責点": -40,
+        "奪三振": 6, "与四死球": -4, "勝利投手": 100, "負け投手": -50,
+        "ホールド": 35, "セーブ": 60, "失策": -30
+      }
+    };
 
-      const expected = (
-        annualBA +
-        (annualHRRate * hrParkFactor) +
-        recentBA +
-        stadiumBA +
-        vsHandBA +
-        vsPitcherBA +
-        (vsPitcherHR * 0.300) -
-        kRate +
-        3 * (1.00 - fielding)
-      );
+    const checkboxItems = [
+      "サイクルヒット", "勝利投手", "負け投手", "完投勝利", "完封勝利", "ノーヒットノーラン", "完全試合", "ホールド", "セーブ"
+    ];
 
-      document.getElementById("result").innerText = `期待値: ${expected.toFixed(3)}`;
+    function updateForm() {
+      const role = document.getElementById('role').value;
+      const form = document.getElementById('form');
+      form.innerHTML = '';
+
+      if (role === 'batter') {
+        form.innerHTML += `<label><input type='checkbox' id='ポジション一致ボーナス'> ポジション一致（+30）</label>`;
+      }
+
+      for (const key in scoring[role]) {
+        if (checkboxItems.includes(key)) {
+          form.innerHTML += `<label><input type='checkbox' id='${key}'> ${key}</label>`;
+        } else if (key !== "ポジション一致ボーナス") {
+          form.innerHTML += `<label>${key}: <input type='number' id='${key}' value='0'></label>`;
+        }
+      }
     }
+
+    function calculateScore() {
+      const role = document.getElementById('role').value;
+      let total = 0;
+      for (const key in scoring[role]) {
+        if (checkboxItems.includes(key) || (key === 'ポジション一致ボーナス' && role === 'batter')) {
+          if (document.getElementById(key).checked) {
+            total += scoring[role][key];
+          }
+        } else {
+          const val = parseInt(document.getElementById(key).value) || 0;
+          total += val * scoring[role][key];
+        }
+      }
+      document.getElementById('result').innerText = `合計ポイント: ${total}`;
+    }
+
+    updateForm();
   </script>
 </body>
 </html>
